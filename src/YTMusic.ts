@@ -118,7 +118,7 @@ export default class YTMusic {
 
 		}
 
-		console.log('proxy', this.client.defaults.proxy)
+		console.log('TS NPM YTMUSIC ::: proxy', this.client.defaults.proxy)
 
 
 		const html = (await this.client.get("/", {

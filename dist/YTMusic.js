@@ -103,8 +103,10 @@ class YTMusic {
                 };
             }
         }
-        // options includes localAddress, timeout, proxy, etc.
-        const html = (await this.client.get("/")).data;
+        console.log('TS NPM YTMUSIC ::: proxy', this.client.defaults.proxy);
+        const html = (await this.client.get("/", {
+            proxy: this.client.defaults.proxy,
+        })).data;
         const setConfigs = html.match(/ytcfg\.set\(.*\)/) || [];
         const configs = setConfigs
             .map(c => c.slice(10, -1))
