@@ -118,10 +118,13 @@ export default class YTMusic {
 
 		}
 
-		// options includes localAddress, timeout, proxy, etc.
+		console.log('proxy', this.client.defaults.proxy)
 
 
-		const html = (await this.client.get("/")).data as string
+		const html = (await this.client.get("/", {
+			proxy: this.client.defaults.proxy,
+		})).data as string
+
 		const setConfigs = html.match(/ytcfg\.set\(.*\)/) || []
 
 		const configs = setConfigs
