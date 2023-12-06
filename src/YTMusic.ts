@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from "axios"
 import { Cookie, CookieJar } from "tough-cookie"
 import { z } from "zod"
+import http from "http"
 
 import AlbumParser from "./parsers/AlbumParser"
 import ArtistParser from "./parsers/ArtistParser"
@@ -80,7 +81,7 @@ export default class YTMusic {
 	/**
 	 * Initializes the API
 	 */
-	public async initialize(cookies?: string) {
+	public async initialize(cookies?: string, options?: { localAddress?: string }) {
 		if (cookies) {
 			for (const cookieString of cookies.split("; ")) {
 				const cookie = Cookie.parse(`${cookieString}`)
@@ -89,6 +90,36 @@ export default class YTMusic {
 				this.cookiejar.setCookieSync(cookie, "https://music.youtube.com/")
 			}
 		}
+
+		if (options) {
+			if (options.localAddress) {
+				const localAddress = options.localAddress
+				const cleanedString = localAddress.replace(/^https?:\/\//, '');
+				const [userInfo, hostAndPort] = cleanedString.split('@');
+				if (!userInfo || !hostAndPort) throw new Error("Invalid localAddress. Username or hostAndPort not found")
+				const [username, password] = userInfo.split(':');
+				let [host, port] = hostAndPort.split(':') as any;
+				if (!host) throw new Error("Invalid localAddress. Host not found")
+				if (!port || isNaN(Number(port))) throw new Error("Invalid localAddress. Port not found")
+				if (!username) throw new Error("Invalid localAddress. Username not found")
+				if (!password) throw new Error("Invalid localAddress. Password not found")
+				if (!port) throw new Error("Invalid localAddress. Port not found")
+				port = port as number
+				this.client.defaults.proxy = {
+					host,
+					port,
+					auth: {
+						username,
+						password
+					},
+					protocol: 'http'
+				}
+			}
+
+		}
+
+		// options includes localAddress, timeout, proxy, etc.
+
 
 		const html = (await this.client.get("/")).data as string
 		const setConfigs = html.match(/ytcfg\.set\(.*\)/) || []
@@ -200,6 +231,7 @@ export default class YTMusic {
 			{
 				responseType: "json",
 				headers,
+				proxy: this.client.defaults.proxy,
 			},
 		)
 
