@@ -1,0 +1,25 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const traverse = (data, ...keys) => {
+    const again = (data, key) => {
+        const res = [];
+        if (data instanceof Object && key in data) {
+            res.push(data[key]);
+        }
+        if (data instanceof Array) {
+            res.push(...data.map(v => again(v, key)).flat());
+        }
+        else if (data instanceof Object) {
+            res.push(...Object.keys(data)
+                .map(k => again(data[k], key))
+                .flat());
+        }
+        return res.length === 1 ? res[0] : res;
+    };
+    let value = data;
+    for (const key of keys) {
+        value = again(value, key);
+    }
+    return value;
+};
+exports.default = traverse;
