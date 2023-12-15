@@ -14,10 +14,12 @@ const VideoParser_1 = __importDefault(require("./parsers/VideoParser"));
 const traverse_1 = __importDefault(require("./utils/traverse"));
 const traverseList_1 = __importDefault(require("./utils/traverseList"));
 const traverseString_1 = __importDefault(require("./utils/traverseString"));
+const https_proxy_agent_1 = require("https-proxy-agent");
 class YTMusic {
     cookiejar;
     config;
     client;
+    agent;
     /**
      * Creates an instance of YTMusic
      * Make sure to call initialize()
@@ -74,38 +76,11 @@ class YTMusic {
         }
         if (options) {
             if (options.localAddress) {
-                const localAddress = options.localAddress;
-                const cleanedString = localAddress.replace(/^https?:\/\//, '');
-                const [userInfo, hostAndPort] = cleanedString.split('@');
-                if (!userInfo || !hostAndPort)
-                    throw new Error("Invalid localAddress. Username or hostAndPort not found");
-                const [username, password] = userInfo.split(':');
-                let [host, port] = hostAndPort.split(':');
-                if (!host)
-                    throw new Error("Invalid localAddress. Host not found");
-                if (!port || isNaN(Number(port)))
-                    throw new Error("Invalid localAddress. Port not found");
-                if (!username)
-                    throw new Error("Invalid localAddress. Username not found");
-                if (!password)
-                    throw new Error("Invalid localAddress. Password not found");
-                if (!port)
-                    throw new Error("Invalid localAddress. Port not found");
-                port = port;
-                this.client.defaults.proxy = {
-                    host,
-                    port,
-                    auth: {
-                        username,
-                        password
-                    },
-                    protocol: 'http'
-                };
+                this.agent = new https_proxy_agent_1.HttpsProxyAgent(options.localAddress);
             }
         }
-        console.log('TS NPM YTMUSIC ::: proxy', this.client.defaults.proxy);
         const html = (await this.client.get("/", {
-            proxy: this.client.defaults.proxy,
+            httpsAgent: this.agent
         })).data;
         const setConfigs = html.match(/ytcfg\.set\(.*\)/) || [];
         const configs = setConfigs
@@ -202,7 +177,7 @@ class YTMusic {
         }, {
             responseType: "json",
             headers,
-            proxy: this.client.defaults.proxy,
+            httpAgent: this.agent
         });
         return "responseContext" in res.data ? res.data : res;
     }

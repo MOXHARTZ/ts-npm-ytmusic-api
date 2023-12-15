@@ -4,6 +4,7 @@ export default class YTMusic {
     private cookiejar;
     private config?;
     private client;
+    private agent;
     /**
      * Creates an instance of YTMusic
      * Make sure to call initialize()
