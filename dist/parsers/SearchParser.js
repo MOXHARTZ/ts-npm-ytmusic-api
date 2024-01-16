@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const traverseList_1 = __importDefault(require("../utils/traverseList"));
+const traverse_1 = require("../utils/traverse");
 const AlbumParser_1 = __importDefault(require("./AlbumParser"));
 const ArtistParser_1 = __importDefault(require("./ArtistParser"));
 const PlaylistParser_1 = __importDefault(require("./PlaylistParser"));
@@ -11,8 +11,8 @@ const SongParser_1 = __importDefault(require("./SongParser"));
 const VideoParser_1 = __importDefault(require("./VideoParser"));
 class SearchParser {
     static parse(item) {
-        const flexColumns = (0, traverseList_1.default)(item, "flexColumns");
-        const type = (0, traverseList_1.default)(flexColumns[1], "runs", "text").at(0);
+        const flexColumns = (0, traverse_1.traverseList)(item, "flexColumns");
+        const type = (0, traverse_1.traverseList)(flexColumns[1], "runs", "text").at(0);
         const parsers = {
             Song: SongParser_1.default.parseSearchResult,
             Video: VideoParser_1.default.parseSearchResult,

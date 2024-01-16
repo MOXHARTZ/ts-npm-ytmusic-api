@@ -1,4 +1,4 @@
-import { AlbumDetailed, AlbumFull, ArtistBasic } from "../schemas";
+import { AlbumDetailed, AlbumFull, ArtistBasic } from "../@types/types";
 export default class AlbumParser {
     static parse(data: any, albumId: string): AlbumFull;
     static parseSearchResult(item: any): AlbumDetailed;

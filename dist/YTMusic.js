@@ -4,17 +4,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const axios_1 = __importDefault(require("axios"));
+const https_proxy_agent_1 = require("https-proxy-agent");
 const tough_cookie_1 = require("tough-cookie");
+const constants_1 = require("./constants");
 const AlbumParser_1 = __importDefault(require("./parsers/AlbumParser"));
 const ArtistParser_1 = __importDefault(require("./parsers/ArtistParser"));
+const Parser_1 = __importDefault(require("./parsers/Parser"));
 const PlaylistParser_1 = __importDefault(require("./parsers/PlaylistParser"));
 const SearchParser_1 = __importDefault(require("./parsers/SearchParser"));
 const SongParser_1 = __importDefault(require("./parsers/SongParser"));
 const VideoParser_1 = __importDefault(require("./parsers/VideoParser"));
-const traverse_1 = __importDefault(require("./utils/traverse"));
-const traverseList_1 = __importDefault(require("./utils/traverseList"));
-const traverseString_1 = __importDefault(require("./utils/traverseString"));
-const https_proxy_agent_1 = require("https-proxy-agent");
+const traverse_1 = require("./utils/traverse");
 class YTMusic {
     cookiejar;
     config;
@@ -65,7 +65,8 @@ class YTMusic {
     /**
      * Initializes the API
      */
-    async initialize(cookies, options) {
+    async initialize(options) {
+        const { cookies, GL, HL, localAddress } = options ?? {};
         if (cookies) {
             for (const cookieString of cookies.split("; ")) {
                 const cookie = tough_cookie_1.Cookie.parse(`${cookieString}`);
@@ -74,13 +75,10 @@ class YTMusic {
                 this.cookiejar.setCookieSync(cookie, "https://music.youtube.com/");
             }
         }
-        if (options) {
-            if (options.localAddress) {
-                this.agent = new https_proxy_agent_1.HttpsProxyAgent(options.localAddress);
-            }
-        }
+        if (localAddress)
+            this.agent = new https_proxy_agent_1.HttpsProxyAgent(localAddress);
         const html = (await this.client.get("/", {
-            httpsAgent: this.agent
+            httpsAgent: this.agent,
         })).data;
         const setConfigs = html.match(/ytcfg\.set\(.*\)/) || [];
         const configs = setConfigs
@@ -100,6 +98,13 @@ class YTMusic {
                 ...config,
             };
         }
+        if (!this.config) {
+            this.config = {};
+        }
+        if (GL)
+            this.config.GL = GL;
+        if (HL)
+            this.config.HL = HL;
         return this;
     }
     /**
@@ -177,7 +182,7 @@ class YTMusic {
         }, {
             responseType: "json",
             headers,
-            httpAgent: this.agent
+            httpAgent: this.agent,
         });
         return "responseContext" in res.data ? res.data : res;
     }
@@ -188,7 +193,7 @@ class YTMusic {
      * @returns Search suggestions
      */
     async getSearchSuggestions(query) {
-        return (0, traverseList_1.default)(await this.constructRequest("music/get_search_suggestions", {
+        return (0, traverse_1.traverseList)(await this.constructRequest("music/get_search_suggestions", {
             input: query,
         }), "query");
     }
@@ -202,7 +207,7 @@ class YTMusic {
             query,
             params: null,
         });
-        return (0, traverseList_1.default)(searchData, "musicResponsiveListItemRenderer")
+        return (0, traverse_1.traverseList)(searchData, "musicResponsiveListItemRenderer")
             .map(SearchParser_1.default.parse)
             .filter(Boolean);
     }
@@ -216,7 +221,7 @@ class YTMusic {
             query,
             params: "Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo%3D",
         });
-        return (0, traverseList_1.default)(searchData, "musicResponsiveListItemRenderer").map(SongParser_1.default.parseSearchResult);
+        return (0, traverse_1.traverseList)(searchData, "musicResponsiveListItemRenderer").map(SongParser_1.default.parseSearchResult);
     }
     /**
      * Searches YouTube Music API for videos
@@ -228,7 +233,7 @@ class YTMusic {
             query,
             params: "Eg-KAQwIABABGAAgACgAMABqChAEEAMQCRAFEAo%3D",
         });
-        return (0, traverseList_1.default)(searchData, "musicResponsiveListItemRenderer").map(VideoParser_1.default.parseSearchResult);
+        return (0, traverse_1.traverseList)(searchData, "musicResponsiveListItemRenderer").map(VideoParser_1.default.parseSearchResult);
     }
     /**
      * Searches YouTube Music API for artists
@@ -240,7 +245,7 @@ class YTMusic {
             query,
             params: "Eg-KAQwIABAAGAAgASgAMABqChAEEAMQCRAFEAo%3D",
         });
-        return (0, traverseList_1.default)(searchData, "musicResponsiveListItemRenderer").map(ArtistParser_1.default.parseSearchResult);
+        return (0, traverse_1.traverseList)(searchData, "musicResponsiveListItemRenderer").map(ArtistParser_1.default.parseSearchResult);
     }
     /**
      * Searches YouTube Music API for albums
@@ -252,7 +257,7 @@ class YTMusic {
             query,
             params: "Eg-KAQwIABAAGAEgACgAMABqChAEEAMQCRAFEAo%3D",
         });
-        return (0, traverseList_1.default)(searchData, "musicResponsiveListItemRenderer").map(AlbumParser_1.default.parseSearchResult);
+        return (0, traverse_1.traverseList)(searchData, "musicResponsiveListItemRenderer").map(AlbumParser_1.default.parseSearchResult);
     }
     /**
      * Searches YouTube Music API for playlists
@@ -264,7 +269,7 @@ class YTMusic {
             query,
             params: "Eg-KAQwIABAAGAAgACgBMABqChAEEAMQCRAFEAo%3D",
         });
-        return (0, traverseList_1.default)(searchData, "musicResponsiveListItemRenderer").map(PlaylistParser_1.default.parseSearchResult);
+        return (0, traverse_1.traverseList)(searchData, "musicResponsiveListItemRenderer").map(PlaylistParser_1.default.parseSearchResult);
     }
     /**
      * Get all possible information of a Song
@@ -297,6 +302,26 @@ class YTMusic {
         return video;
     }
     /**
+     * Get lyrics of a specific Song
+     *
+     * @param videoId Video ID
+     * @returns Lyrics
+     */
+    async getLyrics(videoId) {
+        if (!videoId.match(/^[a-zA-Z0-9-_]{11}$/))
+            throw new Error("Invalid videoId");
+        const data = await this.constructRequest("next", { videoId });
+        const browseId = (0, traverse_1.traverse)((0, traverse_1.traverseList)(data, "tabs", "tabRenderer")[1], "browseId");
+        const lyricsData = await this.constructRequest("browse", { browseId });
+        const lyrics = (0, traverse_1.traverseString)(lyricsData, "description", "runs", "text");
+        return lyrics
+            ? lyrics
+                .replaceAll("\r", "")
+                .split("\n")
+                .filter(v => !!v)
+            : null;
+    }
+    /**
      * Get all possible information of an Artist
      *
      * @param artistId Artist ID
@@ -315,21 +340,20 @@ class YTMusic {
      * @returns Artist's Songs
      */
     async getArtistSongs(artistId) {
-        const artistData = await this.constructRequest("browse", {
-            browseId: artistId,
-        });
-        const browseToken = (0, traverse_1.default)(artistData, "musicShelfRenderer", "title", "browseId");
+        const artistData = await this.constructRequest("browse", { browseId: artistId });
+        const browseToken = (0, traverse_1.traverse)(artistData, "musicShelfRenderer", "title", "browseId");
         if (browseToken instanceof Array)
             return [];
-        const songsData = await this.constructRequest("browse", {
-            browseId: browseToken,
-        });
-        const continueToken = (0, traverse_1.default)(songsData, "continuation");
+        const songsData = await this.constructRequest("browse", { browseId: browseToken });
+        const continueToken = (0, traverse_1.traverse)(songsData, "continuation");
         const moreSongsData = await this.constructRequest("browse", {}, { continuation: continueToken });
         return [
-            ...(0, traverseList_1.default)(songsData, "musicResponsiveListItemRenderer"),
-            ...(0, traverseList_1.default)(moreSongsData, "musicResponsiveListItemRenderer"),
-        ].map(SongParser_1.default.parseArtistSong);
+            ...(0, traverse_1.traverseList)(songsData, "musicResponsiveListItemRenderer"),
+            ...(0, traverse_1.traverseList)(moreSongsData, "musicResponsiveListItemRenderer"),
+        ].map(s => SongParser_1.default.parseArtistSong(s, {
+            artistId,
+            name: (0, traverse_1.traverseString)(artistData, "header", "title", "text"),
+        }));
     }
     /**
      * Get all of Artist's Albums
@@ -341,12 +365,12 @@ class YTMusic {
         const artistData = await this.constructRequest("browse", {
             browseId: artistId,
         });
-        const artistAlbumsData = (0, traverseList_1.default)(artistData, "musicCarouselShelfRenderer")[0];
-        const browseBody = (0, traverse_1.default)(artistAlbumsData, "moreContentButton", "browseEndpoint");
+        const artistAlbumsData = (0, traverse_1.traverseList)(artistData, "musicCarouselShelfRenderer")[0];
+        const browseBody = (0, traverse_1.traverse)(artistAlbumsData, "moreContentButton", "browseEndpoint");
         const albumsData = await this.constructRequest("browse", browseBody);
-        return (0, traverseList_1.default)(albumsData, "musicTwoRowItemRenderer").map(item => AlbumParser_1.default.parseArtistAlbum(item, {
+        return (0, traverse_1.traverseList)(albumsData, "musicTwoRowItemRenderer").map(item => AlbumParser_1.default.parseArtistAlbum(item, {
             artistId,
-            name: (0, traverseString_1.default)(albumsData, "header", "runs", "text")(),
+            name: (0, traverse_1.traverseString)(albumsData, "header", "runs", "text"),
         }));
     }
     /**
@@ -387,14 +411,37 @@ class YTMusic {
         const playlistData = await this.constructRequest("browse", {
             browseId: playlistId,
         });
-        const songs = (0, traverseList_1.default)(playlistData, "musicPlaylistShelfRenderer", "musicResponsiveListItemRenderer");
-        let continuation = (0, traverse_1.default)(playlistData, "continuation");
+        const songs = (0, traverse_1.traverseList)(playlistData, "musicPlaylistShelfRenderer", "musicResponsiveListItemRenderer");
+        let continuation = (0, traverse_1.traverse)(playlistData, "continuation");
         while (!(continuation instanceof Array)) {
             const songsData = await this.constructRequest("browse", {}, { continuation });
-            songs.push(...(0, traverseList_1.default)(songsData, "musicResponsiveListItemRenderer"));
-            continuation = (0, traverse_1.default)(songsData, "continuation");
+            songs.push(...(0, traverse_1.traverseList)(songsData, "musicResponsiveListItemRenderer"));
+            continuation = (0, traverse_1.traverse)(songsData, "continuation");
         }
         return songs.map(VideoParser_1.default.parsePlaylistVideo);
+    }
+    /**
+     * Get content for the home page.
+     *
+     * @returns Mixed HomePageContent
+     */
+    async getHome() {
+        const results = [];
+        const page = await this.constructRequest("browse", { browseId: constants_1.FE_MUSIC_HOME });
+        (0, traverse_1.traverseList)(page, "sectionListRenderer", "contents").forEach(content => {
+            const parsed = Parser_1.default.parseMixedContent(content);
+            parsed && results.push(parsed);
+        });
+        let continuation = (0, traverse_1.traverseString)(page, "continuation");
+        while (continuation) {
+            const nextPage = await this.constructRequest("browse", {}, { continuation });
+            (0, traverse_1.traverseList)(nextPage, "sectionListContinuation", "contents").forEach(content => {
+                const parsed = Parser_1.default.parseMixedContent(content);
+                parsed && results.push(parsed);
+            });
+            continuation = (0, traverse_1.traverseString)(nextPage, "continuation");
+        }
+        return results;
     }
 }
 exports.default = YTMusic;

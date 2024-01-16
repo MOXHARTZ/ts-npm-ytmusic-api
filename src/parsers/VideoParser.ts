@@ -1,25 +1,21 @@
-import { ArtistBasic, VideoDetailed, VideoFull } from "../schemas"
+import { ArtistBasic, VideoDetailed, VideoFull } from "../@types/types"
 import checkType from "../utils/checkType"
-import traverse from "../utils/traverse"
-import traverseList from "../utils/traverseList"
-import traverseString from "../utils/traverseString"
+import { isArtist, isDuration, isTitle } from "../utils/filters"
+import { traverse, traverseList, traverseString } from "../utils/traverse"
 import Parser from "./Parser"
 
 export default class VideoParser {
 	public static parse(data: any): VideoFull {
 		return {
 			type: "VIDEO",
-			videoId: traverseString(data, "videoDetails", "videoId")(),
-			name: traverseString(data, "videoDetails", "title")(),
-			artists: [
-				{
-					artistId: traverseString(data, "videoDetails", "channelId")(),
-					name: traverseString(data, "author")(),
-				},
-			],
-			duration: +traverseString(data, "videoDetails", "lengthSeconds")(),
+			videoId: traverseString(data, "videoDetails", "videoId"),
+			name: traverseString(data, "videoDetails", "title"),
+			artist: {
+				artistId: traverseString(data, "videoDetails", "channelId"),
+				name: traverseString(data, "author"),
+			},
+			duration: +traverseString(data, "videoDetails", "lengthSeconds"),
 			thumbnails: traverseList(data, "videoDetails", "thumbnails"),
-			description: traverseString(data, "description")(),
 			unlisted: traverse(data, "unlisted"),
 			familySafe: traverse(data, "familySafe"),
 			paid: traverse(data, "paid"),
@@ -28,57 +24,57 @@ export default class VideoParser {
 	}
 
 	public static parseSearchResult(item: any): VideoDetailed {
-		const flexColumns = traverseList(item, "flexColumns")
-		const videoId = traverseString(item, "playNavigationEndpoint", "videoId")()
+		const columns = traverseList(item, "flexColumns", "runs").flat()
+
+		const title = columns.find(isTitle)
+		const artist = columns.find(isArtist) || columns[1]
+		const duration = columns.find(isDuration)
 
 		return {
 			type: "VIDEO",
-			videoId,
-			name: traverseString(flexColumns[0], "runs", "text")(),
-			artists: traverseList(flexColumns[1], "runs")
-				.filter(run => "navigationEndpoint" in run)
-				.map(run => ({
-					artistId: traverseString(run, "browseId")(),
-					name: traverseString(run, "text")(),
-				})),
-			duration: Parser.parseDuration(traverseString(flexColumns[1], "text")(-1)),
+			videoId: traverseString(item, "playNavigationEndpoint", "videoId"),
+			name: traverseString(title, "text"),
+			artist: {
+				artistId: traverseString(artist, "browseId") || null,
+				name: traverseString(artist, "text"),
+			},
+			duration: Parser.parseDuration(duration.text),
 			thumbnails: traverseList(item, "thumbnails"),
 		}
 	}
 
-	public static parseArtistTopVideo(
-		item: any,
-		artistBasic: ArtistBasic,
-	): Omit<VideoDetailed, "duration"> {
+	public static parseArtistTopVideo(item: any, artistBasic: ArtistBasic): VideoDetailed {
 		return {
 			type: "VIDEO",
-			videoId: traverseString(item, "videoId")(),
-			name: traverseString(item, "runs", "text")(),
-			artists: [artistBasic],
+			videoId: traverseString(item, "videoId"),
+			name: traverseString(item, "runs", "text"),
+			artist: artistBasic,
+			duration: null,
 			thumbnails: traverseList(item, "thumbnails"),
 		}
 	}
 
 	public static parsePlaylistVideo(item: any): VideoDetailed {
-		const flexColumns = traverseList(item, "flexColumns")
-		const videoId =
-			traverseString(item, "playNavigationEndpoint", "videoId")() ||
-			traverseList(item, "thumbnails")[0].url.match(/https:\/\/i\.ytimg\.com\/vi\/(.+)\//)[1]
+		const columns = traverseList(item, "flexColumns", "runs").flat()
+
+		const title = columns.find(isTitle) || columns[0]
+		const artist = columns.find(isArtist) || columns[1]
+		const duration = columns.find(isDuration)
 
 		return checkType(
 			{
 				type: "VIDEO",
-				videoId,
-				name: traverseString(flexColumns[0], "runs", "text")(),
-				artists: traverseList(flexColumns[1], "runs")
-					.filter(run => "navigationEndpoint" in run)
-					.map(run => ({
-						artistId: traverseString(run, "browseId")(),
-						name: traverseString(run, "text")(),
-					})),
-				duration: Parser.parseDuration(
-					traverseString(item, "fixedColumns", "runs", "text")(),
-				),
+				videoId:
+					traverseString(item, "playNavigationEndpoint", "videoId") ||
+					traverseList(item, "thumbnails")[0].url.match(
+						/https:\/\/i\.ytimg\.com\/vi\/(.+)\//,
+					)[1],
+				name: traverseString(title, "text"),
+				artist: {
+					name: traverseString(artist, "text"),
+					artistId: traverseString(artist, "browseId") || null,
+				},
+				duration: duration ? Parser.parseDuration(duration.text) : null,
 				thumbnails: traverseList(item, "thumbnails"),
 			},
 			VideoDetailed,

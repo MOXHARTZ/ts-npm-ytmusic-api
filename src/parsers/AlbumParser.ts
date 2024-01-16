@@ -1,36 +1,36 @@
-import { AlbumBasic, AlbumDetailed, AlbumFull, ArtistBasic } from "../schemas"
+import { AlbumBasic, AlbumDetailed, AlbumFull, ArtistBasic } from "../@types/types"
 import checkType from "../utils/checkType"
-import traverseList from "../utils/traverseList"
-import traverseString from "../utils/traverseString"
+import { isArtist } from "../utils/filters"
+import { traverse, traverseList, traverseString } from "../utils/traverse"
 import SongParser from "./SongParser"
 
 export default class AlbumParser {
 	public static parse(data: any, albumId: string): AlbumFull {
 		const albumBasic: AlbumBasic = {
 			albumId,
-			name: traverseString(data, "header", "title", "text")(),
+			name: traverseString(data, "header", "title", "text"),
 		}
-		const artists: ArtistBasic[] = traverseList(data, "header", "subtitle", "runs")
-			.filter(run => "navigationEndpoint" in run)
-			.map(run => ({
-				artistId: traverseString(run, "browseId")(),
-				name: traverseString(run, "text")(),
-			}))
+
+		const artistData = traverse(data, "header", "subtitle", "runs")
+		const artistBasic: ArtistBasic = {
+			artistId: traverseString(artistData, "browseId") || null,
+			name: traverseString(artistData, "text"),
+		}
+
 		const thumbnails = traverseList(data, "header", "thumbnails")
 
 		return checkType(
 			{
 				type: "ALBUM",
 				...albumBasic,
-				playlistId: traverseString(data, "buttonRenderer", "playlistId")(),
-				artists,
+				playlistId: traverseString(data, "buttonRenderer", "playlistId"),
+				artist: artistBasic,
 				year: AlbumParser.processYear(
-					traverseString(data, "header", "subtitle", "text")(-1),
+					traverseList(data, "header", "subtitle", "text").at(-1),
 				),
 				thumbnails,
-				description: traverseString(data, "description", "text")(),
 				songs: traverseList(data, "musicResponsiveListItemRenderer").map(item =>
-					SongParser.parseAlbumSong(item, artists, albumBasic, thumbnails),
+					SongParser.parseAlbumSong(item, artistBasic, albumBasic, thumbnails),
 				),
 			},
 			AlbumFull,
@@ -38,21 +38,26 @@ export default class AlbumParser {
 	}
 
 	public static parseSearchResult(item: any): AlbumDetailed {
-		const flexColumns = traverseList(item, "flexColumns")
+		const columns = traverseList(item, "flexColumns", "runs").flat()
+
+		// No specific way to identify the title
+		const title = columns[0]
+		const artist = columns.find(isArtist) || columns[3]
+		const playlistId =
+			traverseString(item, "overlay", "playlistId") ||
+			traverseString(item, "thumbnailOverlay", "playlistId")
 
 		return checkType(
 			{
 				type: "ALBUM",
-				albumId: traverseString(item, "browseId")(-1),
-				playlistId: traverseString(item, "overlay", "playlistId")(),
-				artists: traverseList(flexColumns[1], "runs")
-					.filter(run => "navigationEndpoint" in run)
-					.map(run => ({
-						artistId: traverseString(run, "browseId")(),
-						name: traverseString(run, "text")(),
-					})),
-				year: AlbumParser.processYear(traverseString(flexColumns[1], "runs", "text")(-1)),
-				name: traverseString(flexColumns[0], "runs", "text")(),
+				albumId: traverseList(item, "browseId").at(-1),
+				playlistId,
+				artist: {
+					name: traverseString(artist, "text"),
+					artistId: traverseString(artist, "browseId") || null,
+				},
+				year: AlbumParser.processYear(columns.at(-1)?.text),
+				name: traverseString(title, "text"),
 				thumbnails: traverseList(item, "thumbnails"),
 			},
 			AlbumDetailed,
@@ -63,11 +68,11 @@ export default class AlbumParser {
 		return checkType(
 			{
 				type: "ALBUM",
-				albumId: traverseString(item, "browseId")(-1),
-				playlistId: traverseString(item, "thumbnailOverlay", "playlistId")(),
-				name: traverseString(item, "title", "text")(),
-				artists: [artistBasic],
-				year: AlbumParser.processYear(traverseString(item, "subtitle", "text")(-1)),
+				albumId: traverseList(item, "browseId").at(-1),
+				playlistId: traverseString(item, "thumbnailOverlay", "playlistId"),
+				name: traverseString(item, "title", "text"),
+				artist: artistBasic,
+				year: AlbumParser.processYear(traverseList(item, "subtitle", "text").at(-1)),
 				thumbnails: traverseList(item, "thumbnails"),
 			},
 			AlbumDetailed,
@@ -78,11 +83,11 @@ export default class AlbumParser {
 		return checkType(
 			{
 				type: "ALBUM",
-				albumId: traverseString(item, "browseId")(-1),
-				playlistId: traverseString(item, "musicPlayButtonRenderer", "playlistId")(),
-				name: traverseString(item, "title", "text")(),
-				artists: [artistBasic],
-				year: AlbumParser.processYear(traverseString(item, "subtitle", "text")(-1)),
+				albumId: traverseList(item, "browseId").at(-1),
+				playlistId: traverseString(item, "musicPlayButtonRenderer", "playlistId"),
+				name: traverseString(item, "title", "text"),
+				artist: artistBasic,
+				year: AlbumParser.processYear(traverseList(item, "subtitle", "text").at(-1)),
 				thumbnails: traverseList(item, "thumbnails"),
 			},
 			AlbumDetailed,
@@ -90,6 +95,6 @@ export default class AlbumParser {
 	}
 
 	private static processYear(year: string) {
-		return year.match(/^\d{4}$/) ? +year : null
+		return year && year.match(/^\d{4}$/) ? +year : null
 	}
 }

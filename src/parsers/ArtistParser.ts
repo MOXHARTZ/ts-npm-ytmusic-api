@@ -1,27 +1,23 @@
-import { ArtistBasic, ArtistDetailed, ArtistFull } from "../schemas"
+import { ArtistDetailed, ArtistFull } from "../@types/types"
 import checkType from "../utils/checkType"
-import traverseList from "../utils/traverseList"
-import traverseString from "../utils/traverseString"
+import { traverseList, traverseString } from "../utils/traverse"
 import AlbumParser from "./AlbumParser"
+import PlaylistParser from "./PlaylistParser"
 import SongParser from "./SongParser"
 import VideoParser from "./VideoParser"
-import PlaylistParser from "./PlaylistParser";
 
 export default class ArtistParser {
 	public static parse(data: any, artistId: string): ArtistFull {
-		const artistBasic: ArtistBasic = {
+		const artistBasic = {
 			artistId,
-			name: traverseString(data, "header", "title", "text")(),
+			name: traverseString(data, "header", "title", "text"),
 		}
-
-		const description = traverseString(data, "header", "description", "text")()
 
 		return checkType(
 			{
 				type: "ARTIST",
 				...artistBasic,
 				thumbnails: traverseList(data, "header", "thumbnails"),
-				description,
 				topSongs: traverseList(data, "musicShelfRenderer", "contents").map(item =>
 					SongParser.parseArtistTopSong(item, artistBasic),
 				),
@@ -47,27 +43,28 @@ export default class ArtistParser {
 					traverseList(data, "musicCarouselShelfRenderer")
 						?.at(3)
 						?.contents.map((item: any) =>
-							PlaylistParser.parseArtistFeaturedOn(item),
+							PlaylistParser.parseArtistFeaturedOn(item, artistBasic),
 						) ?? [],
 				similarArtists:
 					traverseList(data, "musicCarouselShelfRenderer")
 						?.at(4)
-						?.contents.map((item: any) =>
-                        	this.parseSimilarArtists(item),
-						) ?? [],
+						?.contents.map((item: any) => this.parseSimilarArtists(item)) ?? [],
 			},
 			ArtistFull,
 		)
 	}
 
 	public static parseSearchResult(item: any): ArtistDetailed {
-		const flexColumns = traverseList(item, "flexColumns")
+		const columns = traverseList(item, "flexColumns", "runs").flat()
+
+		// No specific way to identify the title
+		const title = columns[0]
 
 		return checkType(
 			{
 				type: "ARTIST",
-				artistId: traverseString(item, "browseId")(),
-				name: traverseString(flexColumns[0], "runs", "text")(),
+				artistId: traverseString(item, "browseId"),
+				name: traverseString(title, "text"),
 				thumbnails: traverseList(item, "thumbnails"),
 			},
 			ArtistDetailed,
@@ -78,8 +75,8 @@ export default class ArtistParser {
 		return checkType(
 			{
 				type: "ARTIST",
-				artistId: traverseString(item, "browseId")(),
-				name: traverseString(item, "runs", "text")(),
+				artistId: traverseString(item, "browseId"),
+				name: traverseString(item, "runs", "text"),
 				thumbnails: traverseList(item, "thumbnails"),
 			},
 			ArtistDetailed,

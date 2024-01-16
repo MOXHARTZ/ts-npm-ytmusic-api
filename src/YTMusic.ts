@@ -1,19 +1,14 @@
 import axios, { AxiosInstance } from "axios"
-import { Cookie, CookieJar } from "tough-cookie"
-import { z } from "zod"
 import http from "http"
+import { HttpsProxyAgent } from "https-proxy-agent"
+import { Cookie, CookieJar } from "tough-cookie"
 
-import AlbumParser from "./parsers/AlbumParser"
-import ArtistParser from "./parsers/ArtistParser"
-import PlaylistParser from "./parsers/PlaylistParser"
-import SearchParser from "./parsers/SearchParser"
-import SongParser from "./parsers/SongParser"
-import VideoParser from "./parsers/VideoParser"
 import {
 	AlbumDetailed,
 	AlbumFull,
 	ArtistDetailed,
 	ArtistFull,
+	HomePageContent,
 	PlaylistDetailed,
 	PlaylistFull,
 	SearchResult,
@@ -21,11 +16,16 @@ import {
 	SongFull,
 	VideoDetailed,
 	VideoFull,
-} from "./schemas"
-import traverse from "./utils/traverse"
-import traverseList from "./utils/traverseList"
-import traverseString from "./utils/traverseString"
-import { HttpsProxyAgent } from "https-proxy-agent"
+} from "./@types/types"
+import { FE_MUSIC_HOME } from "./constants"
+import AlbumParser from "./parsers/AlbumParser"
+import ArtistParser from "./parsers/ArtistParser"
+import Parser from "./parsers/Parser"
+import PlaylistParser from "./parsers/PlaylistParser"
+import SearchParser from "./parsers/SearchParser"
+import SongParser from "./parsers/SongParser"
+import VideoParser from "./parsers/VideoParser"
+import { traverse, traverseList, traverseString } from "./utils/traverse"
 
 export default class YTMusic {
 	private cookiejar: CookieJar
@@ -83,7 +83,14 @@ export default class YTMusic {
 	/**
 	 * Initializes the API
 	 */
-	public async initialize(cookies?: string, options?: { localAddress?: string }) {
+	public async initialize(options?: {
+		cookies?: string
+		GL?: string
+		HL?: string
+		localAddress?: string
+	}) {
+		const { cookies, GL, HL, localAddress } = options ?? {}
+
 		if (cookies) {
 			for (const cookieString of cookies.split("; ")) {
 				const cookie = Cookie.parse(`${cookieString}`)
@@ -93,16 +100,13 @@ export default class YTMusic {
 			}
 		}
 
-		if (options) {
-			if (options.localAddress) {
-				this.agent = new HttpsProxyAgent(options.localAddress)
-			}
+		if (localAddress) this.agent = new HttpsProxyAgent(localAddress)
 
-		}
-
-		const html = (await this.client.get("/", {
-			httpsAgent: this.agent
-		})).data as string
+		const html = (
+			await this.client.get("/", {
+				httpsAgent: this.agent,
+			})
+		).data as string
 
 		const setConfigs = html.match(/ytcfg\.set\(.*\)/) || []
 
@@ -123,6 +127,13 @@ export default class YTMusic {
 				...config,
 			}
 		}
+
+		if (!this.config) {
+			this.config = {}
+		}
+
+		if (GL) this.config.GL = GL
+		if (HL) this.config.HL = HL
 
 		return this
 	}
@@ -213,7 +224,7 @@ export default class YTMusic {
 			{
 				responseType: "json",
 				headers,
-				httpAgent: this.agent
+				httpAgent: this.agent,
 			},
 		)
 
@@ -240,7 +251,7 @@ export default class YTMusic {
 	 *
 	 * @param query Query string
 	 */
-	public async search(query: string): Promise<z.infer<typeof SearchResult>[]> {
+	public async search(query: string): Promise<(typeof SearchResult.infer)[]> {
 		const searchData = await this.constructRequest("search", {
 			query,
 			params: null,
@@ -248,7 +259,7 @@ export default class YTMusic {
 
 		return traverseList(searchData, "musicResponsiveListItemRenderer")
 			.map(SearchParser.parse)
-			.filter(Boolean) as z.infer<typeof SearchResult>[]
+			.filter(Boolean) as (typeof SearchResult.infer)[]
 	}
 
 	/**
@@ -256,7 +267,7 @@ export default class YTMusic {
 	 *
 	 * @param query Query string
 	 */
-	public async searchSongs(query: string): Promise<z.infer<typeof SongDetailed>[]> {
+	public async searchSongs(query: string): Promise<(typeof SongDetailed.infer)[]> {
 		const searchData = await this.constructRequest("search", {
 			query,
 			params: "Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo%3D",
@@ -272,7 +283,7 @@ export default class YTMusic {
 	 *
 	 * @param query Query string
 	 */
-	public async searchVideos(query: string): Promise<z.infer<typeof VideoDetailed>[]> {
+	public async searchVideos(query: string): Promise<(typeof VideoDetailed.infer)[]> {
 		const searchData = await this.constructRequest("search", {
 			query,
 			params: "Eg-KAQwIABABGAAgACgAMABqChAEEAMQCRAFEAo%3D",
@@ -288,7 +299,7 @@ export default class YTMusic {
 	 *
 	 * @param query Query string
 	 */
-	public async searchArtists(query: string): Promise<z.infer<typeof ArtistDetailed>[]> {
+	public async searchArtists(query: string): Promise<(typeof ArtistDetailed.infer)[]> {
 		const searchData = await this.constructRequest("search", {
 			query,
 			params: "Eg-KAQwIABAAGAAgASgAMABqChAEEAMQCRAFEAo%3D",
@@ -304,7 +315,7 @@ export default class YTMusic {
 	 *
 	 * @param query Query string
 	 */
-	public async searchAlbums(query: string): Promise<z.infer<typeof AlbumDetailed>[]> {
+	public async searchAlbums(query: string): Promise<(typeof AlbumDetailed.infer)[]> {
 		const searchData = await this.constructRequest("search", {
 			query,
 			params: "Eg-KAQwIABAAGAEgACgAMABqChAEEAMQCRAFEAo%3D",
@@ -320,7 +331,7 @@ export default class YTMusic {
 	 *
 	 * @param query Query string
 	 */
-	public async searchPlaylists(query: string): Promise<z.infer<typeof PlaylistDetailed>[]> {
+	public async searchPlaylists(query: string): Promise<(typeof PlaylistDetailed.infer)[]> {
 		const searchData = await this.constructRequest("search", {
 			query,
 			params: "Eg-KAQwIABAAGAAgACgBMABqChAEEAMQCRAFEAo%3D",
@@ -337,7 +348,7 @@ export default class YTMusic {
 	 * @param videoId Video ID
 	 * @returns Song Data
 	 */
-	public async getSong(videoId: string): Promise<z.infer<typeof SongFull>> {
+	public async getSong(videoId: string): Promise<typeof SongFull.infer> {
 		if (!videoId.match(/^[a-zA-Z0-9-_]{11}$/)) throw new Error("Invalid videoId")
 		const data = await this.constructRequest("player", { videoId })
 
@@ -352,7 +363,7 @@ export default class YTMusic {
 	 * @param videoId Video ID
 	 * @returns Video Data
 	 */
-	public async getVideo(videoId: string): Promise<z.infer<typeof VideoFull>> {
+	public async getVideo(videoId: string): Promise<typeof VideoFull.infer> {
 		if (!videoId.match(/^[a-zA-Z0-9-_]{11}$/)) throw new Error("Invalid videoId")
 		const data = await this.constructRequest("player", { videoId })
 
@@ -362,12 +373,34 @@ export default class YTMusic {
 	}
 
 	/**
+	 * Get lyrics of a specific Song
+	 *
+	 * @param videoId Video ID
+	 * @returns Lyrics
+	 */
+	public async getLyrics(videoId: string) {
+		if (!videoId.match(/^[a-zA-Z0-9-_]{11}$/)) throw new Error("Invalid videoId")
+		const data = await this.constructRequest("next", { videoId })
+		const browseId = traverse(traverseList(data, "tabs", "tabRenderer")[1], "browseId")
+
+		const lyricsData = await this.constructRequest("browse", { browseId })
+		const lyrics = traverseString(lyricsData, "description", "runs", "text")
+
+		return lyrics
+			? lyrics
+					.replaceAll("\r", "")
+					.split("\n")
+					.filter(v => !!v)
+			: null
+	}
+
+	/**
 	 * Get all possible information of an Artist
 	 *
 	 * @param artistId Artist ID
 	 * @returns Artist Data
 	 */
-	public async getArtist(artistId: string): Promise<z.infer<typeof ArtistFull>> {
+	public async getArtist(artistId: string): Promise<typeof ArtistFull.infer> {
 		const data = await this.constructRequest("browse", {
 			browseId: artistId,
 		})
@@ -381,17 +414,13 @@ export default class YTMusic {
 	 * @param artistId Artist ID
 	 * @returns Artist's Songs
 	 */
-	public async getArtistSongs(artistId: string): Promise<z.infer<typeof SongDetailed>[]> {
-		const artistData = await this.constructRequest("browse", {
-			browseId: artistId,
-		})
+	public async getArtistSongs(artistId: string): Promise<(typeof SongDetailed.infer)[]> {
+		const artistData = await this.constructRequest("browse", { browseId: artistId })
 		const browseToken = traverse(artistData, "musicShelfRenderer", "title", "browseId")
 
 		if (browseToken instanceof Array) return []
 
-		const songsData = await this.constructRequest("browse", {
-			browseId: browseToken,
-		})
+		const songsData = await this.constructRequest("browse", { browseId: browseToken })
 		const continueToken = traverse(songsData, "continuation")
 		const moreSongsData = await this.constructRequest(
 			"browse",
@@ -402,7 +431,12 @@ export default class YTMusic {
 		return [
 			...traverseList(songsData, "musicResponsiveListItemRenderer"),
 			...traverseList(moreSongsData, "musicResponsiveListItemRenderer"),
-		].map(SongParser.parseArtistSong)
+		].map(s =>
+			SongParser.parseArtistSong(s, {
+				artistId,
+				name: traverseString(artistData, "header", "title", "text"),
+			}),
+		)
 	}
 
 	/**
@@ -411,7 +445,7 @@ export default class YTMusic {
 	 * @param artistId Artist ID
 	 * @returns Artist's Albums
 	 */
-	public async getArtistAlbums(artistId: string): Promise<z.infer<typeof AlbumDetailed>[]> {
+	public async getArtistAlbums(artistId: string): Promise<(typeof AlbumDetailed.infer)[]> {
 		const artistData = await this.constructRequest("browse", {
 			browseId: artistId,
 		})
@@ -423,7 +457,7 @@ export default class YTMusic {
 		return traverseList(albumsData, "musicTwoRowItemRenderer").map(item =>
 			AlbumParser.parseArtistAlbum(item, {
 				artistId,
-				name: traverseString(albumsData, "header", "runs", "text")(),
+				name: traverseString(albumsData, "header", "runs", "text"),
 			}),
 		)
 	}
@@ -434,7 +468,7 @@ export default class YTMusic {
 	 * @param albumId Album ID
 	 * @returns Album Data
 	 */
-	public async getAlbum(albumId: string): Promise<z.infer<typeof AlbumFull>> {
+	public async getAlbum(albumId: string): Promise<typeof AlbumFull.infer> {
 		const data = await this.constructRequest("browse", {
 			browseId: albumId,
 		})
@@ -448,7 +482,7 @@ export default class YTMusic {
 	 * @param playlistId Playlist ID
 	 * @returns Playlist Data
 	 */
-	public async getPlaylist(playlistId: string): Promise<z.infer<typeof PlaylistFull>> {
+	public async getPlaylist(playlistId: string): Promise<typeof PlaylistFull.infer> {
 		if (playlistId.startsWith("PL")) playlistId = "VL" + playlistId
 		const data = await this.constructRequest("browse", {
 			browseId: playlistId,
@@ -463,7 +497,7 @@ export default class YTMusic {
 	 * @param playlistId Playlist ID
 	 * @returns Playlist's Videos
 	 */
-	public async getPlaylistVideos(playlistId: string): Promise<z.infer<typeof VideoDetailed>[]> {
+	public async getPlaylistVideos(playlistId: string): Promise<(typeof VideoDetailed.infer)[]> {
 		if (playlistId.startsWith("PL")) playlistId = "VL" + playlistId
 		const playlistData = await this.constructRequest("browse", {
 			browseId: playlistId,
@@ -482,5 +516,31 @@ export default class YTMusic {
 		}
 
 		return songs.map(VideoParser.parsePlaylistVideo)
+	}
+
+	/**
+	 * Get content for the home page.
+	 *
+	 * @returns Mixed HomePageContent
+	 */
+	public async getHome(): Promise<HomePageContent[]> {
+		const results: HomePageContent[] = []
+		const page = await this.constructRequest("browse", { browseId: FE_MUSIC_HOME })
+		traverseList(page, "sectionListRenderer", "contents").forEach(content => {
+			const parsed = Parser.parseMixedContent(content)
+			parsed && results.push(parsed)
+		})
+
+		let continuation = traverseString(page, "continuation")
+		while (continuation) {
+			const nextPage = await this.constructRequest("browse", {}, { continuation })
+			traverseList(nextPage, "sectionListContinuation", "contents").forEach(content => {
+				const parsed = Parser.parseMixedContent(content)
+				parsed && results.push(parsed)
+			})
+			continuation = traverseString(nextPage, "continuation")
+		}
+
+		return results
 	}
 }
