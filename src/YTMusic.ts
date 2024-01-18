@@ -73,6 +73,7 @@ export default class YTMusic {
 					const cookie = Cookie.parse(`${cookieString}`)
 					if (!cookie) return
 
+					if (cookie.domain !== ".youtube.com") cookie.domain = ".youtube.com";
 					this.cookiejar.setCookieSync(cookie, res.config.baseURL)
 				}
 			}
@@ -388,9 +389,9 @@ export default class YTMusic {
 
 		return lyrics
 			? lyrics
-					.replaceAll("\r", "")
-					.split("\n")
-					.filter(v => !!v)
+				.replaceAll("\r", "")
+				.split("\n")
+				.filter(v => !!v)
 			: null
 	}
 

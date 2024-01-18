@@ -56,6 +56,8 @@ class YTMusic {
                     const cookie = tough_cookie_1.Cookie.parse(`${cookieString}`);
                     if (!cookie)
                         return;
+                    if (cookie.domain !== ".youtube.com")
+                        cookie.domain = ".youtube.com";
                     this.cookiejar.setCookieSync(cookie, res.config.baseURL);
                 }
             }
