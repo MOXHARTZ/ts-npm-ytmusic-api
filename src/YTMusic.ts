@@ -115,7 +115,7 @@ export default class YTMusic {
 
 	private addCookies(cookies: YTCookie[]) {
 		for (const cookie of cookies) {
-			this.cookiejar.setCookieSync(this.convertCookie(cookie), 'https://www.youtube.com')
+			this.cookiejar.setCookieSync(this.convertCookie(cookie), 'https://mobilee.youtube.com')
 		}
 	}
 
