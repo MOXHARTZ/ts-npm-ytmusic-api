@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from "axios"
 import http from "http"
 import { HttpsProxyAgent } from "https-proxy-agent"
-import { Cookie, CookieJar, canonicalDomain } from "tough-cookie"
+import { canonicalDomain, Cookie, CookieJar } from "tough-cookie"
 
 import {
 	AlbumDetailed,
@@ -16,6 +16,7 @@ import {
 	SongFull,
 	VideoDetailed,
 	VideoFull,
+	YTCookie,
 } from "./@types/types"
 import { FE_MUSIC_HOME } from "./constants"
 import AlbumParser from "./parsers/AlbumParser"
@@ -26,7 +27,6 @@ import SearchParser from "./parsers/SearchParser"
 import SongParser from "./parsers/SongParser"
 import VideoParser from "./parsers/VideoParser"
 import { traverse, traverseList, traverseString } from "./utils/traverse"
-import { YTCookie } from "."
 
 export default class YTMusic {
 	private cookiejar: CookieJar
@@ -135,7 +135,7 @@ export default class YTMusic {
 	 * Initializes the API
 	 */
 	public async initialize(options?: {
-		cookies?: string
+		cookies?: string | YTCookie[]
 		GL?: string
 		HL?: string
 		localAddress?: string,

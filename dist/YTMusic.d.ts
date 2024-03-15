@@ -1,4 +1,4 @@
-import { AlbumDetailed, AlbumFull, ArtistDetailed, ArtistFull, HomePageContent, PlaylistDetailed, PlaylistFull, SearchResult, SongDetailed, SongFull, VideoDetailed, VideoFull } from "./@types/types";
+import { AlbumDetailed, AlbumFull, ArtistDetailed, ArtistFull, HomePageContent, PlaylistDetailed, PlaylistFull, SearchResult, SongDetailed, SongFull, VideoDetailed, VideoFull, YTCookie } from "./@types/types";
 export default class YTMusic {
     private cookiejar;
     private config?;
@@ -18,7 +18,7 @@ export default class YTMusic {
      * Initializes the API
      */
     initialize(options?: {
-        cookies?: string;
+        cookies?: string | YTCookie[];
         GL?: string;
         HL?: string;
         localAddress?: string;

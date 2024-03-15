@@ -155,3 +155,15 @@ export const HomePageContent = type({
 		"[]",
 	],
 })
+
+export type YTCookie = {
+	name: string,
+	value: string,
+	expirationDate: number | string,
+	domain: string,
+	path: string,
+	secure: boolean,
+	httpOnly: boolean,
+	sameSite: string,
+	hostOnly: boolean
+}
