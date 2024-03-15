@@ -114,8 +114,9 @@ export default class YTMusic {
 	}
 
 	private addCookies(cookies: YTCookie[]) {
+		this.cookiejar.removeAllCookiesSync()
 		for (const cookie of cookies) {
-			this.cookiejar.setCookieSync(this.convertCookie(cookie), 'https://mobilee.youtube.com')
+			this.cookiejar.setCookieSync(this.convertCookie(cookie), 'https://music.youtube.com')
 		}
 	}
 
@@ -128,7 +129,6 @@ export default class YTMusic {
 			return;
 		}
 		this.addCookies(cookies);
-		console.log('cookies are initialized', this.cookiejar)
 	}
 
 	/**
@@ -145,10 +145,7 @@ export default class YTMusic {
 
 		if (cookies) this.initCookies(cookies);
 
-		if (this.initialized && !options?.force) {
-			console.log('already initialized')
-			return this; // already initialized
-		}
+		if (this.initialized && !options?.force) return this; // save 800ms.
 
 		if (localAddress) this.agent = new HttpsProxyAgent(localAddress)
 
