@@ -20,6 +20,7 @@ class YTMusic {
     config;
     client;
     agent;
+    initialized = false;
     /**
      * Creates an instance of YTMusic
      * Make sure to call initialize()
@@ -77,6 +78,10 @@ class YTMusic {
                 this.cookiejar.setCookieSync(cookie, "https://music.youtube.com/");
             }
         }
+        if (this.initialized && !options?.force) {
+            console.log('already initialized');
+            return this; // already initialized
+        }
         if (localAddress)
             this.agent = new https_proxy_agent_1.HttpsProxyAgent(localAddress);
         const html = (await this.client.get("/", {
@@ -107,7 +112,11 @@ class YTMusic {
             this.config.GL = GL;
         if (HL)
             this.config.HL = HL;
+        this.initialized = true;
         return this;
+    }
+    async isInitialized() {
+        return this.initialized;
     }
     /**
      * Constructs a basic YouTube Music API request with all essential headers

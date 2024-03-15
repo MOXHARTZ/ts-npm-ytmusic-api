@@ -4,6 +4,7 @@ export default class YTMusic {
     private config?;
     private client;
     private agent;
+    initialized: boolean;
     /**
      * Creates an instance of YTMusic
      * Make sure to call initialize()
@@ -17,7 +18,9 @@ export default class YTMusic {
         GL?: string;
         HL?: string;
         localAddress?: string;
+        force?: boolean;
     }): Promise<this | undefined>;
+    isInitialized(): Promise<boolean>;
     /**
      * Constructs a basic YouTube Music API request with all essential headers
      * and body parameters needed to make the API work

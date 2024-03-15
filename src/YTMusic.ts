@@ -31,7 +31,9 @@ export default class YTMusic {
 	private cookiejar: CookieJar
 	private config?: Record<string, string>
 	private client: AxiosInstance
-	private agent: http.Agent | undefined
+	private agent: http.Agent | undefined;
+
+	public initialized = false;
 
 	/**
 	 * Creates an instance of YTMusic
@@ -88,7 +90,8 @@ export default class YTMusic {
 		cookies?: string
 		GL?: string
 		HL?: string
-		localAddress?: string
+		localAddress?: string,
+		force?: boolean // force re-initialization
 	}) {
 		const { cookies, GL, HL, localAddress } = options ?? {}
 
@@ -99,6 +102,11 @@ export default class YTMusic {
 
 				this.cookiejar.setCookieSync(cookie, "https://music.youtube.com/")
 			}
+		}
+
+		if (this.initialized && !options?.force) {
+			console.log('already initialized')
+			return this; // already initialized
 		}
 
 		if (localAddress) this.agent = new HttpsProxyAgent(localAddress)
@@ -136,7 +144,13 @@ export default class YTMusic {
 		if (GL) this.config.GL = GL
 		if (HL) this.config.HL = HL
 
+		this.initialized = true;
+
 		return this
+	}
+
+	public async isInitialized() {
+		return this.initialized
 	}
 
 	/**
