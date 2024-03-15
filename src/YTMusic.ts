@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from "axios"
 import http from "http"
 import { HttpsProxyAgent } from "https-proxy-agent"
-import { Cookie, CookieJar } from "tough-cookie"
+import { Cookie, CookieJar, canonicalDomain } from "tough-cookie"
 
 import {
 	AlbumDetailed,
@@ -26,6 +26,7 @@ import SearchParser from "./parsers/SearchParser"
 import SongParser from "./parsers/SongParser"
 import VideoParser from "./parsers/VideoParser"
 import { traverse, traverseList, traverseString } from "./utils/traverse"
+import { YTCookie } from "."
 
 export default class YTMusic {
 	private cookiejar: CookieJar
@@ -83,6 +84,53 @@ export default class YTMusic {
 		})
 	}
 
+	// distubejs@ytdl-core
+	private convertSameSite(sameSite: string) {
+		switch (sameSite) {
+			case 'strict':
+				return 'strict';
+			case 'lax':
+				return 'lax';
+			case 'no_restriction':
+			case 'unspecified':
+			default:
+				return 'none';
+		}
+	};
+
+	private convertCookie(cookie: YTCookie) {
+		if (cookie instanceof Cookie) return cookie
+		return new Cookie({
+			key: cookie.name,
+			value: cookie.value,
+			expires: typeof cookie.expirationDate === 'number' ? new Date(cookie.expirationDate * 1000) : 'Infinity',
+			domain: canonicalDomain(cookie.domain),
+			path: cookie.path,
+			secure: cookie.secure,
+			httpOnly: cookie.httpOnly,
+			sameSite: this.convertSameSite(cookie.sameSite),
+			hostOnly: cookie.hostOnly,
+		})
+	}
+
+	private addCookies(cookies: YTCookie[]) {
+		for (const cookie of cookies) {
+			this.cookiejar.setCookieSync(this.convertCookie(cookie), 'https://www.youtube.com')
+		}
+	}
+
+	private initCookies(cookies: string | YTCookie[]) {
+		if (typeof cookies === 'string') {
+			cookies = cookies.split(';').map(c => Cookie.parse(c)).filter(Boolean) as any;
+			if (!cookies) return
+			cookies = cookies as YTCookie[]
+			this.addCookies(cookies);
+			return;
+		}
+		this.addCookies(cookies);
+		console.log('cookies are initialized', this.cookiejar)
+	}
+
 	/**
 	 * Initializes the API
 	 */
@@ -95,14 +143,7 @@ export default class YTMusic {
 	}) {
 		const { cookies, GL, HL, localAddress } = options ?? {}
 
-		if (cookies) {
-			for (const cookieString of cookies.split("; ")) {
-				const cookie = Cookie.parse(`${cookieString}`)
-				if (!cookie) return
-
-				this.cookiejar.setCookieSync(cookie, "https://music.youtube.com/")
-			}
-		}
+		if (cookies) this.initCookies(cookies);
 
 		if (this.initialized && !options?.force) {
 			console.log('already initialized')
@@ -149,7 +190,7 @@ export default class YTMusic {
 		return this
 	}
 
-	public async isInitialized() {
+	public isInitialized() {
 		return this.initialized
 	}
 

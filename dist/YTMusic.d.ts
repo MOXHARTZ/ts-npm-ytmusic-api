@@ -10,6 +10,10 @@ export default class YTMusic {
      * Make sure to call initialize()
      */
     constructor();
+    private convertSameSite;
+    private convertCookie;
+    private addCookies;
+    private initCookies;
     /**
      * Initializes the API
      */
@@ -19,8 +23,8 @@ export default class YTMusic {
         HL?: string;
         localAddress?: string;
         force?: boolean;
-    }): Promise<this | undefined>;
-    isInitialized(): Promise<boolean>;
+    }): Promise<this>;
+    isInitialized(): boolean;
     /**
      * Constructs a basic YouTube Music API request with all essential headers
      * and body parameters needed to make the API work

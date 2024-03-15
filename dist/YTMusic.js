@@ -65,19 +65,59 @@ class YTMusic {
             return res;
         });
     }
+    // distubejs@ytdl-core
+    convertSameSite(sameSite) {
+        switch (sameSite) {
+            case 'strict':
+                return 'strict';
+            case 'lax':
+                return 'lax';
+            case 'no_restriction':
+            case 'unspecified':
+            default:
+                return 'none';
+        }
+    }
+    ;
+    convertCookie(cookie) {
+        if (cookie instanceof tough_cookie_1.Cookie)
+            return cookie;
+        return new tough_cookie_1.Cookie({
+            key: cookie.name,
+            value: cookie.value,
+            expires: typeof cookie.expirationDate === 'number' ? new Date(cookie.expirationDate * 1000) : 'Infinity',
+            domain: (0, tough_cookie_1.canonicalDomain)(cookie.domain),
+            path: cookie.path,
+            secure: cookie.secure,
+            httpOnly: cookie.httpOnly,
+            sameSite: this.convertSameSite(cookie.sameSite),
+            hostOnly: cookie.hostOnly,
+        });
+    }
+    addCookies(cookies) {
+        for (const cookie of cookies) {
+            this.cookiejar.setCookieSync(this.convertCookie(cookie), 'https://www.youtube.com');
+        }
+    }
+    initCookies(cookies) {
+        if (typeof cookies === 'string') {
+            cookies = cookies.split(';').map(c => tough_cookie_1.Cookie.parse(c)).filter(Boolean);
+            if (!cookies)
+                return;
+            cookies = cookies;
+            this.addCookies(cookies);
+            return;
+        }
+        this.addCookies(cookies);
+        console.log('cookies are initialized', this.cookiejar);
+    }
     /**
      * Initializes the API
      */
     async initialize(options) {
         const { cookies, GL, HL, localAddress } = options ?? {};
-        if (cookies) {
-            for (const cookieString of cookies.split("; ")) {
-                const cookie = tough_cookie_1.Cookie.parse(`${cookieString}`);
-                if (!cookie)
-                    return;
-                this.cookiejar.setCookieSync(cookie, "https://music.youtube.com/");
-            }
-        }
+        if (cookies)
+            this.initCookies(cookies);
         if (this.initialized && !options?.force) {
             console.log('already initialized');
             return this; // already initialized
@@ -115,7 +155,7 @@ class YTMusic {
         this.initialized = true;
         return this;
     }
-    async isInitialized() {
+    isInitialized() {
         return this.initialized;
     }
     /**
