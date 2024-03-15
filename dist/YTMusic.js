@@ -96,7 +96,7 @@ class YTMusic {
     }
     addCookies(cookies) {
         for (const cookie of cookies) {
-            this.cookiejar.setCookieSync(this.convertCookie(cookie), 'https://www.youtube.com');
+            this.cookiejar.setCookieSync(this.convertCookie(cookie), 'https://mobilee.youtube.com');
         }
     }
     initCookies(cookies) {
