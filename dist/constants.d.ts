@@ -1,6 +1,0 @@
-export declare enum PageType {
-    MUSIC_PAGE_TYPE_ALBUM = "MUSIC_PAGE_TYPE_ALBUM",
-    MUSIC_PAGE_TYPE_ARTIST = "MUSIC_PAGE_TYPE_ARTIST",
-    MUSIC_PAGE_TYPE_PLAYLIST = "MUSIC_PAGE_TYPE_PLAYLIST"
-}
-export declare const FE_MUSIC_HOME = "FEmusic_home";
